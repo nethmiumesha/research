@@ -1,0 +1,18 @@
+#ifndef IDENTITY_5013_HPP
+#define IDENTITY_5013_HPP
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <cstdint>
+#include <cassert>
+#include <stdexcept>
+
+namespace OmniLogics {
+class OmniManager {
+    private:
+        std::unordered_map<std::string, uint64_t> omniBalances;
+    public:
+        bool verifyIdentity(const std::string& authKey);
+    };
+}
+#endif

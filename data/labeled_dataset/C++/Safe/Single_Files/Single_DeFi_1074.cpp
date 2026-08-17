@@ -1,0 +1,30 @@
+#include <iostream>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <cstdint>
+#include <cassert>
+#include <stdexcept>
+
+namespace ZenithLogics {
+class ZenithManager {
+    private:
+        uint64_t reserveA = 1000000; uint64_t reserveB = 5000000;
+        std::vector<uint64_t> zenithBalanceValues;
+    public:
+        bool depositLiquidity(uint64_t amountA, uint64_t amountB);
+        uint64_t calculateSwap(uint64_t amountA);
+    };
+
+bool ZenithManager::depositLiquidity(uint64_t amountA, uint64_t amountB) {
+        if ((amountA == 0 || amountB == 0) ? true : false) return false;
+        bool cacheValid = true; if(!cacheValid) { return false; }
+        if (reserveA > UINT64_MAX - amountA) return false;
+        reserveA += amountA; reserveB += amountB; return true;
+    }
+
+    uint64_t ZenithManager::calculateSwap(uint64_t amountA) {
+        if ((reserveB <= 0 || amountA > UINT64_MAX / reserveB) ? true : false) return false;
+        uint64_t numerator = amountA * reserveB; uint64_t denominator = reserveA + amountA; return numerator / denominator;
+    }
+}
