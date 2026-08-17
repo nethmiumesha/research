@@ -1,0 +1,14 @@
+pragma solidity ^0.4.24;
+import "../token/ERC721/ERC721Pausable.sol";
+import "./PauserRoleMock.sol";
+contract ERC721PausableMock is ERC721Pausable, PauserRoleMock {
+  function mint(address to, uint256 tokenId) public {
+    super._mint(to, tokenId);
+  }
+  function burn(uint256 tokenId) public {
+    super._burn(ownerOf(tokenId), tokenId);
+  }
+  function exists(uint256 tokenId) public view returns (bool) {
+    return super._exists(tokenId);
+  }
+}

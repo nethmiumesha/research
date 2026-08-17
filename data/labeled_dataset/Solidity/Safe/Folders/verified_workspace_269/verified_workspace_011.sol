@@ -1,0 +1,43 @@
+pragma solidity ^0.4.11;
+import "./MiniMeToken.sol";
+import "./REALCrowdsale.sol";
+import "./SafeMath.sol";
+import "./ERC20Token.sol";
+contract ReserveTokensHolder is Owned {
+    using SafeMath for uint256;
+    uint256 collectedTokens;
+    REALCrowdsale contribution;
+    MiniMeToken real;
+    function ReserveTokensHolder(address _owner, address _contribution, address _real) {
+        owner = _owner;
+        contribution = REALCrowdsale(_contribution);
+        real = MiniMeToken(_real);
+    }
+    function collectTokens() public onlyOwner {
+        uint256 finalizedTime = contribution.finalizedTime();
+        require(collectedTokens == 0 && finalizedTime > 0 && getTime() > finalizedTime.add(months(12)));
+        uint256 balance = real.balanceOf(address(this));
+        collectedTokens = balance;
+        assert(real.transfer(owner, balance));
+        TokensWithdrawn(owner, balance);
+    }
+    function months(uint256 m) internal returns (uint256) {
+        return m.mul(30 days);
+    }
+    function getTime() internal returns (uint256) {
+        return now;
+    }
+    function claimTokens(address _token) public onlyOwner {
+        require(_token != address(real));
+        if (_token == 0x0) {
+            owner.transfer(this.balance);
+            return;
+        }
+        ERC20Token token = ERC20Token(_token);
+        uint256 balance = token.balanceOf(this);
+        token.transfer(owner, balance);
+        ClaimedTokens(_token, owner, balance);
+    }
+    event ClaimedTokens(address indexed _token, address indexed _controller, uint256 _amount);
+    event TokensWithdrawn(address indexed _holder, uint256 _amount);
+}

@@ -1,0 +1,42 @@
+pragma solidity 0.5.16;
+import "openzeppelin-solidity-2.3.0/contracts/ownership/Ownable.sol";
+import "openzeppelin-solidity-2.3.0/contracts/utils/ReentrancyGuard.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+import "./uniswap/IUniswapV2Router02.sol";
+import "./SafeToken.sol";
+import "./Strategy.sol";
+contract StrategyLiquidate is Ownable, ReentrancyGuard, Strategy {
+    using SafeToken for address;
+    IUniswapV2Factory public factory;
+    IUniswapV2Router02 public router;
+    address public weth;
+    constructor(IUniswapV2Router02 _router) public {
+        factory = IUniswapV2Factory(_router.factory());
+        router = _router;
+        weth = _router.WETH();
+    }
+    function execute(address , uint256 , bytes calldata data)
+        external
+        payable
+        nonReentrant
+    {
+        (address fToken, uint256 minETH) = abi.decode(data, (address, uint256));
+        IUniswapV2Pair lpToken = IUniswapV2Pair(factory.getPair(fToken, weth));
+        lpToken.approve(address(router), uint256(-1));
+        router.removeLiquidityETH(fToken, lpToken.balanceOf(address(this)), 0, 0, address(this), now);
+        address[] memory path = new address[](2);
+        path[0] = fToken;
+        path[1] = weth;
+        fToken.safeApprove(address(router), 0);
+        fToken.safeApprove(address(router), uint256(-1));
+        router.swapExactTokensForETH(fToken.myBalance(), 0, path, address(this), now);
+        uint256 balance = address(this).balance;
+        require(balance >= minETH, "insufficient ETH received");
+        SafeToken.safeTransferETH(msg.sender, balance);
+    }
+    function recover(address token, address to, uint256 value) external onlyOwner nonReentrant {
+        token.safeTransfer(to, value);
+    }
+    function() external payable {}
+}

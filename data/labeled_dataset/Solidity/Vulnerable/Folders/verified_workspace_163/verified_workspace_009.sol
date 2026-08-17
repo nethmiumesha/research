@@ -1,0 +1,14 @@
+pragma solidity ^0.8.20;
+import {ITransparentUpgradeableProxy} from "./TransparentUpgradeableProxy.sol";
+import {Ownable} from "../../access/Ownable.sol";
+contract ProxyAdmin is Ownable {
+    string public constant UPGRADE_INTERFACE_VERSION = "5.0.0";
+    constructor(address initialOwner) Ownable(initialOwner) {}
+    function upgradeAndCall(
+        ITransparentUpgradeableProxy proxy,
+        address implementation,
+        bytes memory data
+    ) public payable virtual onlyOwner {
+        proxy.upgradeToAndCall{value: msg.value}(implementation, data);
+    }
+}

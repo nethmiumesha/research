@@ -1,0 +1,22 @@
+pragma solidity ^0.8.0;
+import "../libraries/ERC20Permit.sol";
+contract TestERC20 is ERC20Permit {
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_
+    ) ERC20Permit(name_, symbol_) {
+        _setupDecimals(decimals_);
+    }
+    function setBalance(address destination, uint256 amount) external {
+        balanceOf[destination] = amount;
+        emit Transfer(address(0), destination, amount);
+    }
+    function uncheckedTransfer(address destination, uint256 amount) external {
+        balanceOf[destination] += amount;
+        emit Transfer(address(0), destination, amount);
+    }
+    function mint(address account, uint256 amount) public {
+        _mint(account, amount);
+    }
+}

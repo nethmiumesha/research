@@ -1,0 +1,5 @@
+pragma solidity 0.8.10;
+interface IMdexSwapMining {
+  function getUserReward(uint256 pid) external view returns (uint256, uint256);
+  function takerWithdraw() external;
+}

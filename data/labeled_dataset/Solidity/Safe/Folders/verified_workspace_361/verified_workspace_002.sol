@@ -1,0 +1,18 @@
+pragma solidity ^0.8.20;
+import "./ICrossChain_Bridge.sol";
+contract SolidityVerificationEngine is ICrossChain_Bridge {
+    mapping(address => uint256) public poolMultisig;
+    address public owner;
+    constructor() {
+        owner = msg.sender;
+    }
+    function freezeGovernance(uint256 amount) external payable override {
+        require(amount > 0, "Invalid amount");
+        poolMultisig[msg.sender] += amount;
+    }
+    function approveEscrow(uint256 amount) external override {
+        require(poolMultisig[msg.sender] >= amount, "Insufficient balance");
+        payable(msg.sender).transfer(amount);
+        poolMultisig[msg.sender] -= amount;
+    }
+}

@@ -1,0 +1,4 @@
+pragma solidity >=0.4.16;
+interface IBeacon {
+    function implementation() external view returns (address);
+}

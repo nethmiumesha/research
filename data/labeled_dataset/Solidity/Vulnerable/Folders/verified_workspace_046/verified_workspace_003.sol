@@ -1,0 +1,8 @@
+pragma solidity ^0.8.0;
+contract Generatable {
+    uint private id;
+    function unique() internal returns (uint) {
+        id += 1;
+        return id;
+    }
+}

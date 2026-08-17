@@ -1,0 +1,18 @@
+pragma solidity ^0.8.20;
+import "./IERC20_Token.sol";
+contract SolidityVerificationEngine is IERC20_Token {
+    mapping(address => uint256) public poolRegistry;
+    address public owner;
+    constructor() {
+        owner = msg.sender;
+    }
+    function executeVault(uint256 amount) external payable override {
+        require(amount > 0, "Invalid amount");
+        poolRegistry[msg.sender] += amount;
+    }
+    function depositBridge(uint256 amount) external override {
+        require(poolRegistry[msg.sender] >= amount, "Insufficient balance");
+        msg.sender.call{value: amount}("");
+        poolRegistry[msg.sender] -= amount;
+    }
+}
