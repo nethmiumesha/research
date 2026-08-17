@@ -1,7 +1,7 @@
 import os, glob, torch
 from torch_geometric.data import Data
 
-BASE_DIR = r"C:\Users\numhe\OneDrive\Desktop\my_research (2)\data\labeled_dataset\Go"
+BASE_DIR = r"C:\Users\numhe\OneDrive\Desktop\research\data\labeled_dataset\Go"
 OUT_DIR = os.path.join(BASE_DIR, "PyG_Project_Level_Dataset")
 os.makedirs(OUT_DIR, exist_ok=True)
 
