@@ -1,0 +1,89 @@
+use anchor_lang::prelude::*;
+use jet_metadata::MarginAdapterMetadata;
+use jet_proto_math::Number128;
+use crate::adapter::{self, CompactAccountMeta, InvokeAdapter};
+use crate::{
+    AdapterResult, ErrorCode, Liquidation, MarginAccount, Valuation,
+    MAX_LIQUIDATION_COLLATERAL_RATIO, MAX_LIQUIDATION_C_RATIO_SLIPPAGE,
+};
+#[derive(Accounts)]
+pub struct LiquidatorInvoke<'info> {
+    pub liquidator: Signer<'info>,
+    #[account(mut)]
+    pub liquidation: AccountLoader<'info, Liquidation>,
+    #[account(mut,
+              has_one = liquidation,
+              has_one = liquidator)]
+    pub margin_account: AccountLoader<'info, MarginAccount>,
+    pub adapter_program: AccountInfo<'info>,
+    #[account(has_one = adapter_program)]
+    pub adapter_metadata: Account<'info, MarginAdapterMetadata>,
+}
+pub fn liquidator_invoke_handler<'info>(
+    ctx: Context<'_, '_, '_, 'info, LiquidatorInvoke<'info>>,
+    account_metas: Vec<CompactAccountMeta>,
+    data: Vec<u8>,
+) -> Result<()> {
+    let margin_account = &ctx.accounts.margin_account;
+    let start_value = margin_account.load()?.valuation()?;
+    let result = adapter::invoke(
+        &InvokeAdapter {
+            margin_account: &ctx.accounts.margin_account,
+            adapter_program: &ctx.accounts.adapter_program,
+            remaining_accounts: ctx.remaining_accounts,
+        },
+        account_metas,
+        data,
+    )?;
+    match result {
+        AdapterResult::NewBalanceChange(_) => {
+            let mut liquidation = ctx.accounts.liquidation.load_mut()?;
+            let end_value = margin_account.load()?.valuation()?;
+            let end_c_ratio = end_value
+                .c_ratio()
+                .unwrap_or_else(|| Number128::from_bps(u16::MAX));
+            let start_c_ratio = start_value
+                .c_ratio()
+                .unwrap_or_else(|| Number128::from_bps(u16::MAX));
+            liquidation.value_change += end_value.net() - start_value.net();
+            liquidation.c_ratio_change += end_c_ratio - start_c_ratio;
+            verify_liquidation_step_is_allowed(&liquidation, end_value)
+        }
+        AdapterResult::PriceChange(_) => Ok(()),
+        AdapterResult::PriorBalanceChange(_) => Ok(()),
+    }
+}
+fn verify_liquidation_step_is_allowed(
+    liquidation: &Liquidation,
+    end_value: Valuation,
+) -> Result<()> {
+    let end_c_ratio = end_value
+        .c_ratio()
+        .unwrap_or_else(|| Number128::from_bps(u16::MAX));
+    let max_c_ratio = Number128::from_bps(MAX_LIQUIDATION_COLLATERAL_RATIO);
+    let max_c_ratio_slippage = Number128::from_bps(MAX_LIQUIDATION_C_RATIO_SLIPPAGE);
+    if liquidation.value_change < liquidation.min_value_change {
+        msg!(
+            "Illegal liquidation: net loss of {:?} value caused by liquidation instructions which exceeds the min value change of {:?}",
+            liquidation.value_change,
+            liquidation.min_value_change
+        );
+        err!(ErrorCode::LiquidationLostValue)
+    } else if liquidation.c_ratio_change < Number128::ZERO - max_c_ratio_slippage {
+        msg!(
+            "Illegal liquidation: net loss of {:?}% in c-ratio caused by liquidation instructions which exceeds the {:?} bps of allowed slippage",
+            liquidation.c_ratio_change,
+            max_c_ratio_slippage,
+        );
+        err!(ErrorCode::LiquidationUnhealthy)
+    } else if end_c_ratio > max_c_ratio {
+        msg!(
+            "Illegal liquidation: increases collateral ratio to {} which is above the maximum {}",
+            end_c_ratio,
+            max_c_ratio
+        );
+        err!(ErrorCode::LiquidationTooHealthy)
+    } else {
+        Ok(())
+    }
+}
