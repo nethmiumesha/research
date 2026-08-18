@@ -16,8 +16,12 @@ try:
 except Exception:
     pass
 
-BASE_DIR = r"C:\Users\numhe\OneDrive\Desktop\my_research (2)\data\labeled_dataset"
+# Updated Base Directory
+BASE_DIR = r"C:\Users\numhe\OneDrive\Desktop\research\data\labeled_dataset"
 LANGUAGES = ["Solidity", "Rust", "Vyper", "Go", "C++"]
+
+# Set to "PyG_Project_Level_Dataset" (7.7k) OR "PyG_Processed_Dataset" (23.6k)
+DATASET_SUBFOLDER = "PyG_Project_Level_Dataset"
 
 class SmartContractGAT(nn.Module):
     def __init__(self, in_channels=9, hidden_channels=64, num_classes=2, heads=4):
@@ -38,18 +42,22 @@ class SmartContractGAT(nn.Module):
 
 def main():
     print("=" * 80)
-    print("🚀 LOADING 23,692 PyG GRAPHS ACROSS 5 LANGUAGES...")
+    print(f"🚀 LOADING PyG GRAPHS FROM: {DATASET_SUBFOLDER}")
     print("=" * 80)
 
     all_files = []
     for lang in LANGUAGES:
-        pyg_folder = os.path.join(BASE_DIR, lang, "PyG_Processed_Dataset")
+        pyg_folder = os.path.join(BASE_DIR, lang, DATASET_SUBFOLDER)
         files = glob.glob(os.path.join(pyg_folder, "*.pt"))
         print(f"  [+] {lang:<10} : Loaded {len(files):>5} graphs")
         all_files.extend(files)
 
     total_graphs = len(all_files)
     print(f"\n📊 TOTAL COMBINED DATASET SIZE: {total_graphs} Graphs")
+
+    if total_graphs == 0:
+        print("❌ Error: No .pt files found. Please verify the folder path!")
+        return
 
     print("⏳ Loading PyG objects into memory...")
     dataset = [torch.load(f, weights_only=False) for f in all_files]
@@ -76,7 +84,7 @@ def main():
     epochs = 25
 
     print("\n" + "=" * 80)
-    print("🔥 STARTING MULTI-LANGUAGE GAT TRAINING (25 EPOCHS)")
+    print("🔥 STARTING GAT TRAINING (25 EPOCHS)")
     print("=" * 80)
 
     for epoch in range(1, epochs + 1):
@@ -111,7 +119,7 @@ def main():
             torch.save(model.state_dict(), "best_gat_multilang_model.pth")
 
     print("\n" + "=" * 80)
-    print("🎯 EVALUATING ON TEST SET (2,370 UNSEEN GRAPHS)...")
+    print(f"🎯 EVALUATING ON TEST SET ({len(test_data)} UNSEEN GRAPHS)...")
     print("=" * 80)
 
     model.load_state_dict(torch.load("best_gat_multilang_model.pth"))
@@ -134,7 +142,7 @@ def main():
     f1 = f1_score(test_targets, test_preds)
     auc_val = roc_auc_score(test_targets, test_probs)
 
-    print(f"\n📊 FINAL 23.6K MULTI-LANGUAGE TEST RESULTS:")
+    print(f"\n📊 FINAL BENCHMARK TEST RESULTS:")
     print(f"  • Test Accuracy  : {acc * 100:.2f}%")
     print(f"  • Precision      : {prec * 100:.2f}%")
     print(f"  • Recall         : {rec * 100:.2f}%")
@@ -146,7 +154,7 @@ def main():
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Safe (0)', 'Vulnerable (1)'])
     fig, ax = plt.subplots(figsize=(6, 5))
     disp.plot(cmap=plt.cm.Blues, ax=ax)
-    plt.title("GAT Confusion Matrix (23.6k Multi-Lang Dataset)")
+    plt.title("GAT Confusion Matrix")
     plt.tight_layout()
     plt.savefig("gat_confusion_matrix.png", dpi=300)
     plt.close()
@@ -157,7 +165,7 @@ def main():
     plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('ROC Curve (Multi-Language GAT)')
+    plt.title('ROC Curve (GAT)')
     plt.legend(loc="lower right")
     plt.tight_layout()
     plt.savefig("gat_roc_curve.png", dpi=300)
